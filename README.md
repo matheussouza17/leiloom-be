@@ -40,15 +40,12 @@ radar-leilao-be/
 ✅ Prisma ORM
 
 ```bash
-Copy
-Edit
 yarn add prisma @prisma/client
 yarn prisma init
+```
 Exemplo de schema.prisma básico:
 
-prisma
-Copy
-Edit
+```prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -66,14 +63,10 @@ A aplicação está hospedada na plataforma Render.com com deploy contínuo a pa
 
 Ajuste no main.ts
 ```ts
-Copy
-Edit
 await app.listen(process.env.PORT || 3000);
 ```
 Scripts de produção no package.json
 ```json
-Copy
-Edit
 "scripts": {
   "start": "nest start",
   "start:dev": "nest start --watch",
@@ -84,8 +77,6 @@ Edit
 Arquivo render.yaml
 
 ```yaml
-Copy
-Edit
 services:
   - type: web
     name: radar-leilao-api
@@ -101,8 +92,6 @@ services:
 
 📂 Organização Modular Futuramente
 ```bash
-Copy
-Edit
 src/
 ├── auth/             # Módulo de autenticação
 ├── user/             # Módulo de usuários
@@ -111,7 +100,5 @@ src/
 A estrutura já vem com testes de integração (e2e) configurados com Jest:
 
 ```bash
-Copy
-Edit
 yarn test:e2e
 ```
