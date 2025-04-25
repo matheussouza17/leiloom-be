@@ -20,13 +20,136 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  // BackOffice Roles
+  BOOwner
+  BOAdmin
+  BOFinancial
+  BOOperator
 
-model User {
+  // Client Roles
+  ClientOwner
+  ClientAdmin
+  ClientFinancial
+  ClientOperator
+}
+
+enum RequestType {
+  AccountCreation
+  RequestPassword
+  InfoChanging
+}
+
+model Client {
+  id            String   @id @default(uuid())
+  name          String
+  address       String
+
+  clientPlans   ClientPlan[]
+  clientUsers   ClientUser[]
+  requests      ClientRequest[]
+  termsAccepted ClientTermsOfUse[]
+
+  createdOn     DateTime @default(now())
+  updatedOn     DateTime @updatedAt
+}
+
+model ClientPlan {
+  id         String   @id @default(uuid())
+  
+  client     Client   @relation(fields: [clientId], references: [id])
+  clientId   String
+
+  plan       Plan     @relation(fields: [planId], references: [id])
+  planId     String
+
+  current    Boolean  @default(true)  // se é o plano atual
+
+  periods    ClientPeriodPlan[]      // períodos de uso desse plano
+
+  createdOn  DateTime @default(now())
+}
+
+
+model ClientUser {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
-  password     String
+  password  String
+  cpfCnpj   BigInt
+  phone     String
+  role      Role
+
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+
+  requests  ClientRequest[]
+
+  createdOn DateTime @default(now())
+  updatedOn DateTime @updatedAt
+}
+
+
+model Plan {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  price        Decimal
+  durationDays Int
+  isTrial      Boolean  @default(false)
+  createdOn    DateTime @default(now())
+
+  clientPlans  ClientPlan[]
+}
+
+model ClientPeriodPlan {
+  id             String   @id @default(uuid())
+  clientPlan     ClientPlan @relation(fields: [clientPlanId], references: [id])
+  clientPlanId   String
+
+  startsAt       DateTime
+  expiresAt      DateTime
+  isTrial        Boolean  @default(false)
+  isCurrent      Boolean  @default(false)
+  wasConfirmed   Boolean  @default(false)
+
+  createdOn      DateTime @default(now())
+}
+
+model ClientRequest {
+  id            String   @id @default(uuid())
+  client        Client   @relation(fields: [clientId], references: [id])
+  clientId      String
+
+  clientUser    ClientUser @relation(fields: [clientUserId], references: [id])
+  clientUserId  String
+
+  requestType   RequestType 
+  generatedToken String?
+  generatedCode  String?
+  expires        DateTime
+
+  createdOn     DateTime @default(now())
+}
+
+model TermsOfUse {
+  id         String   @id @default(uuid())
+  fileUrl    String   // caminho para o PDF
+  description String?
+  isCurrent  Boolean  @default(false)
   createdOn  DateTime @default(now())
-  updatedOn  DateTime @default(now())
+
+  acceptedBy ClientTermsOfUse[]
+}
+
+model ClientTermsOfUse {
+  id           String   @id @default(uuid())
+  client       Client   @relation(fields: [clientId], references: [id])
+  clientId     String
+
+  terms        TermsOfUse @relation(fields: [termsId], references: [id])
+  termsId      String
+
+  acceptedAt   DateTime @default(now())
 }
 
