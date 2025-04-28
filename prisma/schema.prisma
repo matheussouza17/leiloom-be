@@ -12,7 +12,6 @@
 //npx prisma db pull
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -51,6 +50,8 @@ model User {
   role      Role
   createdOn DateTime @default(now())
   updatedOn DateTime @updatedAt
+
+  uploadedTerms TermsOfUse[]
 }
 
 model Client {
@@ -79,7 +80,8 @@ model ClientUser {
   clientId String
   client   Client @relation(fields: [clientId], references: [id])
 
-  requests ClientRequest[]
+  requests      ClientRequest[]
+  acceptedTerms ClientTermsOfUse[]
 
   createdOn DateTime @default(now())
   updatedOn DateTime @updatedAt
@@ -145,11 +147,15 @@ model ClientRequest {
 }
 
 model TermsOfUse {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   fileUrl     String
   description String?
-  isCurrent   Boolean  @default(false)
-  createdOn   DateTime @default(now())
+  isCurrent   Boolean @default(false)
+
+  uploadedById String // ID do User que fez o upload
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  createdOn DateTime @default(now())
 
   acceptedBy ClientTermsOfUse[]
 }
@@ -164,4 +170,28 @@ model ClientTermsOfUse {
   termsId String
 
   acceptedAt DateTime @default(now())
+
+  acceptedById String // ID do ClientUser que aceitou
+  acceptedBy   ClientUser @relation(fields: [acceptedById], references: [id])
+}
+
+//LOGIN Control
+enum LoginResult {
+  SUCCESS
+  FAILURE
+}
+
+enum LoginContext {
+  BACKOFFICE
+  CLIENT
+}
+
+model LoginHistory {
+  id        String       @id @default(uuid())
+  userId    String // ID do User ou ClientUser (não terá FK)
+  context   LoginContext // BACKOFFICE ou CLIENT
+  result    LoginResult // SUCCESS ou FAILURE
+  ipAddress String?
+  userAgent String?
+  createdOn DateTime     @default(now())
 }

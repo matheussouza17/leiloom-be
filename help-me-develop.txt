@@ -3,9 +3,9 @@ nest start --watch
 
 Criar módulos:
 
-nest g module modules/user
-nest g service modules/user
-nest g controller modules/user
+nest g module modules/terms
+nest g service modules/terms
+nest g controller modules/terms
 
 Prisma:
 npx prisma migrate dev --name create_user_table
@@ -16,3 +16,51 @@ JWT:
 yarn add bcrypt
 yarn add class-validator class-transformer
 yarn add -D @types/bcrypt
+
+
+Criar admin:
+yarn seed
+
+
+Adicionar no CI/CD:
+- name: Run Prisma Migrate
+  run: npx prisma migrate deploy
+
+- name: Run Prisma Seed
+  run: npx prisma db seed
+
+
+Usar RolesGuard nas chamadas das apis
+EX:
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '@prisma/client';
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('admin')
+export class AdminController {
+  @Get('dashboard')
+  @Roles(Role.BOAdmin, Role.BOOwner)
+  getDashboard() {
+    return 'Acesso liberado para BOAdmin ou BOOwner';
+  }
+}
+
+
+O que temos:
+
+✅ Cadastro e gerenciamento de User
+
+✅ Cadastro e gerenciamento de Client
+
+✅ Cadastro e gerenciamento de ClientUser
+
+✅ Controle e Upload de Termos de Uso
+
+✅ Aceitação de Termos de Uso
+
+✅ API documentada via Swagger
+
+✅ Login BO e FO

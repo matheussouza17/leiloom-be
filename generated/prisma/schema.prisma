@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+//npx prisma studio
+//npx prisma db push
+//npx prisma migrate dev --name init
+//npx prisma generate
+//npx prisma db seed
+//npx prisma migrate reset
+//npx prisma db pull
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Role {
+  // BackOffice Roles
+  BOOwner
+  BOAdmin
+  BOFinancial
+  BOOperator
+
+  // Client Roles
+  ClientOwner
+  ClientAdmin
+  ClientFinancial
+  ClientOperator
+}
+
+enum RequestType {
+  AccountCreation
+  RequestPassword
+  InfoChanging
+}
+
+// Models
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdOn DateTime @default(now())
+  updatedOn DateTime @updatedAt
+}
+
+model Client {
+  id      String @id @default(uuid())
+  name    String
+  address String
+
+  clientPlans   ClientPlan[]
+  clientUsers   ClientUser[]
+  requests      ClientRequest[]
+  termsAccepted ClientTermsOfUse[]
+
+  createdOn DateTime @default(now())
+  updatedOn DateTime @updatedAt
+}
+
+model ClientUser {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+  cpfCnpj  BigInt
+  phone    String
+  role     Role
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  requests ClientRequest[]
+
+  createdOn DateTime @default(now())
+  updatedOn DateTime @updatedAt
+}
+
+model Plan {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  price        Decimal
+  durationDays Int
+  isTrial      Boolean  @default(false)
+  createdOn    DateTime @default(now())
+
+  clientPlans ClientPlan[]
+}
+
+model ClientPlan {
+  id String @id @default(uuid())
+
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
+
+  plan   Plan   @relation(fields: [planId], references: [id])
+  planId String
+
+  current Boolean @default(true)
+
+  periods ClientPeriodPlan[]
+
+  createdOn DateTime @default(now())
+}
+
+model ClientPeriodPlan {
+  id           String     @id @default(uuid())
+  clientPlan   ClientPlan @relation(fields: [clientPlanId], references: [id])
+  clientPlanId String
+
+  startsAt     DateTime
+  expiresAt    DateTime
+  isTrial      Boolean  @default(false)
+  isCurrent    Boolean  @default(false)
+  wasConfirmed Boolean  @default(false)
+
+  createdOn DateTime @default(now())
+}
+
+model ClientRequest {
+  id String @id @default(uuid())
+
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
+
+  clientUser   ClientUser @relation(fields: [clientUserId], references: [id])
+  clientUserId String
+
+  requestType    RequestType
+  generatedToken String?
+  generatedCode  String?
+  expires        DateTime
+
+  createdOn DateTime @default(now())
+}
+
+model TermsOfUse {
+  id          String   @id @default(uuid())
+  fileUrl     String
+  description String?
+  isCurrent   Boolean  @default(false)
+  createdOn   DateTime @default(now())
+
+  acceptedBy ClientTermsOfUse[]
+}
+
+model ClientTermsOfUse {
+  id String @id @default(uuid())
+
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
+
+  terms   TermsOfUse @relation(fields: [termsId], references: [id])
+  termsId String
+
+  acceptedAt DateTime @default(now())
+}

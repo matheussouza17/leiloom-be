@@ -2,35 +2,40 @@ import { Body, Controller, Post, Get, Patch, Delete, Param } from '@nestjs/commo
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
+@ApiTags('Users')
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-    async create(@Body() dto: CreateUserDto) {
+  @ApiOperation({ summary: 'Cria um novo User' })
+  async create(@Body() dto: CreateUserDto) {
     return this.userService.create(dto);
-    }
+  }
 
   @Get()
-    async findAll() {
+  @ApiOperation({ summary: 'Retorna os Users da aplicação' })
+  async findAll() {
     return this.userService.findAll();
-    }
+  }
 
   @Get(':id')
-    async findOne(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Retorna um User de acordo com o Id' })
+  async findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
-    }
+  }
 
   @Patch(':id')
-    async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  @ApiOperation({ summary: 'Realiza Update no User' })
+  async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.userService.update(id, dto);
-    }
+  }
 
-    @Delete(':id')
-    async remove(@Param('id') id: string) {
+  @Delete(':id')
+  @ApiOperation({ summary: 'Remove um user' })
+  async remove(@Param('id') id: string) {
     return this.userService.remove(id);
-    }
-
-
+  }
 }
