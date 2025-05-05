@@ -11,12 +11,14 @@ export class TermsService {
     const terms = await this.prisma.termsOfUse.findUnique({ where: { id: dto.termsId } });
 
     if (!terms || !terms.isCurrent) {
+      console.log('Termo inválido ou não atual.');
       throw new BadRequestException('Termo inválido ou não atual.');
     }
 
     const clientUser = await this.prisma.clientUser.findUnique({ where: { id: dto.clientUserId } });
 
     if (!clientUser) {
+      console.log('Usuário cliente não encontrado.');
       throw new NotFoundException('Usuário cliente não encontrado.');
     }
 
@@ -28,7 +30,7 @@ export class TermsService {
     });
 
     if (alreadyAccepted) {
-      throw new BadRequestException('Termo já aceito por este cliente.');
+      return alreadyAccepted; 
     }
 
     const acceptance = await this.prisma.clientTermsOfUse.create({
@@ -47,7 +49,6 @@ export class TermsService {
       where: { isCurrent: true },
       orderBy: { createdOn: 'desc' },
     });
-
     if (!terms) {
       throw new NotFoundException('Nenhum termo de uso atual encontrado.');
     }

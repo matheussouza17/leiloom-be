@@ -71,7 +71,15 @@ model UserRequest {
 model Client {
   id      String @id @default(uuid())
   name    String
-  address String
+  cpfCnpj  BigInt?
+  cep String?
+  street String?
+  number String?
+  complement String?
+  neighborhood String?
+  city String?
+  state String?
+  country String?
 
   clientPlans   ClientPlan[]
   clientUsers   ClientUser[]

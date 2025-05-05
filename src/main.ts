@@ -6,8 +6,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const config = new DocumentBuilder()
-    .setTitle('Radar Leilão API')
-    .setDescription('Documentação da API do Radar Leilão')
+    .setTitle('Leiloom API')
+    .setDescription('API do Leilão Leiloom')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -15,6 +15,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  app.enableCors();
   await app.listen(process.env.PORT ?? 3333);
 }
 

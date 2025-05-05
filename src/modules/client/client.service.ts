@@ -8,31 +8,65 @@ export class ClientService {
   private prisma = new PrismaClient();
 
   async create(dto: CreateClientDto) {
-    return this.prisma.client.create({
+    const created = await this.prisma.client.create({
       data: {
         name: dto.name,
-        address: dto.address,
+        cpfCnpj: BigInt(dto.cpfCnpj),
+        cep: dto.cep,
+        street: dto.street,
+        number: dto.number,
+        complement: dto.complement,
+        neighborhood: dto.neighborhood,
+        city: dto.city,
+        state: dto.state,
+        country: dto.country,
       },
       select: {
         id: true,
         name: true,
-        address: true,
+        cpfCnpj: true,
+        cep: true,
+        street: true,
+        number: true,
+        complement: true,
+        neighborhood: true,
+        city: true,
+        state: true,
+        country: true,
         createdOn: true,
         updatedOn: true,
       },
     });
+
+    return {
+      ...created,
+      cpfCnpj: created.cpfCnpj?.toString() ?? null,
+    };
   }
 
   async findAll() {
-    return this.prisma.client.findMany({
+    const clients = await this.prisma.client.findMany({
       select: {
         id: true,
         name: true,
-        address: true,
+        cpfCnpj: true,
+        cep: true,
+        street: true,
+        number: true,
+        complement: true,
+        neighborhood: true,
+        city: true,
+        state: true,
+        country: true,
         createdOn: true,
         updatedOn: true,
       },
     });
+
+    return clients.map(c => ({
+      ...c,
+      cpfCnpj: c.cpfCnpj?.toString() ?? null,
+    }));
   }
 
   async findOne(id: string) {
@@ -41,7 +75,15 @@ export class ClientService {
       select: {
         id: true,
         name: true,
-        address: true,
+        cpfCnpj: true,
+        cep: true,
+        street: true,
+        number: true,
+        complement: true,
+        neighborhood: true,
+        city: true,
+        state: true,
+        country: true,
         createdOn: true,
         updatedOn: true,
       },
@@ -51,7 +93,10 @@ export class ClientService {
       throw new NotFoundException(`Cliente com ID ${id} não encontrado.`);
     }
 
-    return client;
+    return {
+      ...client,
+      cpfCnpj: client.cpfCnpj?.toString() ?? null,
+    };
   }
 
   async update(id: string, dto: UpdateClientDto) {
@@ -61,20 +106,38 @@ export class ClientService {
       throw new NotFoundException(`Cliente com ID ${id} não encontrado.`);
     }
 
-    return this.prisma.client.update({
+    const data: any = { ...dto };
+
+    if (dto.cpfCnpj) {
+      data.cpfCnpj = BigInt(dto.cpfCnpj);
+    }
+
+    data.updatedOn = new Date();
+
+    const updated = await this.prisma.client.update({
       where: { id },
-      data: {
-        ...dto,
-        updatedOn: new Date(),
-      },
+      data,
       select: {
         id: true,
         name: true,
-        address: true,
+        cpfCnpj: true,
+        cep: true,
+        street: true,
+        number: true,
+        complement: true,
+        neighborhood: true,
+        city: true,
+        state: true,
+        country: true,
         createdOn: true,
         updatedOn: true,
       },
     });
+
+    return {
+      ...updated,
+      cpfCnpj: updated.cpfCnpj?.toString() ?? null,
+    };
   }
 
   async remove(id: string) {
@@ -84,6 +147,20 @@ export class ClientService {
       throw new NotFoundException(`Cliente com ID ${id} não encontrado.`);
     }
 
-    return this.prisma.client.delete({ where: { id } });
+    const deleted = await this.prisma.client.delete({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        cpfCnpj: true,
+        createdOn: true,
+        updatedOn: true,
+      },
+    });
+
+    return {
+      ...deleted,
+      cpfCnpj: deleted.cpfCnpj?.toString() ?? null,
+    };
   }
 }
