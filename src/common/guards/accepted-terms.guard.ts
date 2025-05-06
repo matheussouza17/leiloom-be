@@ -13,7 +13,7 @@ export class AcceptedTermsGuard implements CanActivate {
       // Só aplicamos o guard para ClientUsers
       return true;
     }
-
+    
     const currentTerms = await this.prisma.termsOfUse.findFirst({
       where: { isCurrent: true },
     });

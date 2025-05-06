@@ -1,6 +1,6 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsNumberString, MinLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { IsEmail, IsEnum, IsNotEmpty, IsNumberString, MinLength, IsOptional, IsString} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Role, AccountStatus } from '@prisma/client';
 
 export class CreateClientUserDto {
   @ApiProperty({ example: 'João da Silva' })
@@ -30,4 +30,18 @@ export class CreateClientUserDto {
   @ApiProperty({ example: 'client-id-uuid', description: 'ID do Cliente associado' })
   @IsNotEmpty()
   clientId: string;
+  
+  @ApiPropertyOptional({ example: 'APPROVED', enum: AccountStatus })
+  @IsOptional()
+  @IsEnum(AccountStatus)
+  status?: AccountStatus;
+
+  @ApiPropertyOptional({ example: 'abc123' })
+  @IsOptional()
+  @IsString()
+  confirmationCode?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  isConfirmed?: boolean;
 }

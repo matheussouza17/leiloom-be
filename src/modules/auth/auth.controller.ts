@@ -7,6 +7,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { VerifyEmailCodeDto } from './dto/verify-email-code.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -55,5 +56,10 @@ export class AuthController {
   @ApiOperation({ summary: 'Validar token de reset de senha' })
   async validateResetToken(@Query('token') token: string) {
     return this.authService.validateResetToken(token);
+  }
+
+  @Post('verify-email-code')
+  async verifyEmailCode(@Body() dto: VerifyEmailCodeDto) {
+    return this.authService.verifyEmailCode(dto.email, dto.code);
   }
 }

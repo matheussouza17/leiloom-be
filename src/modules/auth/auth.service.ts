@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginContext, LoginResult } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -305,5 +305,59 @@ export class AuthService {
   
     
   }
+
+
+  async verifyEmailCode(email: string, code: string) {
+    const user = await this.prisma.clientUser.findUnique({
+      where: { email },
+    });
+  
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+  
+    if (user.isConfirmed) {
+      throw new BadRequestException('Usuário já confirmado');
+    }
+  
+    if (user.confirmationCode !== code) {
+      throw new BadRequestException('Código inválido');
+    }
+  
+    const updated = await this.prisma.clientUser.update({
+      where: { email },
+      data: {
+        isConfirmed: true,
+        confirmationCode: null,
+        status: 'APPROVED',
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        status: true,
+        isConfirmed: true,
+        clientId: true,
+      },
+    });
+
+    await this.prisma.client.update({
+      where: { id : updated.clientId },
+      data: {
+        status: 'APPROVED',
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+      },
+    });
+  
+    return {
+      message: 'Confirmação realizada com sucesso',
+      user: updated,
+    };
+  }
+  
   
 }

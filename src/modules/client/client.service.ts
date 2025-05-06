@@ -20,6 +20,7 @@ export class ClientService {
         city: dto.city,
         state: dto.state,
         country: dto.country,
+        status: 'PENDING',
       },
       select: {
         id: true,
@@ -131,6 +132,7 @@ export class ClientService {
         country: true,
         createdOn: true,
         updatedOn: true,
+        status: true,
       },
     });
 

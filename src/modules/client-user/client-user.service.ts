@@ -10,7 +10,8 @@ export class ClientUserService {
 
   async create(dto: CreateClientUserDto) {
     const passwordHash = await bcrypt.hash(dto.password, 10);
-
+    const confirmationCode = Math.random().toString(36).substring(2, 15); 
+    console.log('Generated confirmation code:', confirmationCode);
     try {
       const user = await this.prisma.clientUser.create({
         data: {
@@ -21,6 +22,9 @@ export class ClientUserService {
           cpfCnpj: BigInt(dto.cpfCnpj),
           role: dto.role,
           clientId: dto.clientId,
+          status: 'PENDING',
+          confirmationCode: confirmationCode, 
+          isConfirmed: false,
         },
         select: {
           id: true,
@@ -29,32 +33,31 @@ export class ClientUserService {
           phone: true,
           cpfCnpj: true,
           role: true,
+          status: true,
+          isConfirmed: true,
           createdOn: true,
           updatedOn: true,
         },
       });
-
+  
       return {
         ...user,
         cpfCnpj: user.cpfCnpj.toString(),
       };
     } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          if (error.code === 'P2002') {
-            const target = (error.meta as any)?.target as string[] | string;
-      
-            if (Array.isArray(target) && target.includes('email')) {
-              throw new ConflictException('E-mail já cadastrado.');
-            }
-      
-            if (typeof target === 'string' && target === 'email') {
-              throw new ConflictException('E-mail já cadastrado.');
-            }
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          const target = (error.meta as any)?.target as string[] | string;
+  
+          if ((Array.isArray(target) && target.includes('email')) || target === 'email') {
+            throw new ConflictException('E-mail já cadastrado.');
           }
         }
-        throw error;
-      }      
+      }
+      throw error;
+    }
   }
+  
 
   async findAll() {
     const users = await this.prisma.clientUser.findMany({

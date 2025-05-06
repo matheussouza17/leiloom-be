@@ -1,5 +1,6 @@
-import { IsOptional, IsString, IsNumberString } from 'class-validator';
+import { IsOptional, IsString, IsNumberString, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { AccountStatus } from '@prisma/client';
 
 export class UpdateClientDto {
   @ApiPropertyOptional({ example: 'Empresa Exemplo Atualizada' })
@@ -51,4 +52,18 @@ export class UpdateClientDto {
   @IsOptional()
   @IsString()
   country?: string;
+
+  @ApiPropertyOptional({ example: 'APPROVED', enum: AccountStatus })
+  @IsOptional()
+  @IsEnum(AccountStatus)
+  status?: AccountStatus;
+
+  @ApiPropertyOptional({ example: 'abc123' })
+  @IsOptional()
+  @IsString()
+  confirmationCode?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  isConfirmed?: boolean;
 }

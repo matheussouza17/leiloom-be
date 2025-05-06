@@ -40,6 +40,14 @@ enum RequestType {
   InfoChanging
 }
 
+enum AccountStatus {
+  PENDING
+  CONFIRMED
+  APPROVED
+  EXCLUDED
+}
+
+
 // Models
 
 model User {
@@ -81,6 +89,8 @@ model Client {
   state String?
   country String?
 
+  status    AccountStatus @default(PENDING)
+
   clientPlans   ClientPlan[]
   clientUsers   ClientUser[]
   requests      ClientRequest[]
@@ -101,6 +111,11 @@ model ClientUser {
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id])
+
+  status AccountStatus @default(PENDING)
+  confirmationCode String?
+  isConfirmed Boolean @default(false)
+
 
   requests      ClientRequest[]
   acceptedTerms ClientTermsOfUse[]
