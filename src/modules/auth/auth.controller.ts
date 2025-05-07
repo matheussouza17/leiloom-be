@@ -17,14 +17,24 @@ export class AuthController {
   @Post('login-backoffice')
   @ApiOperation({ summary: 'Login para BackOffice' })
   async loginBackoffice(@Request() req, @Body() dto: LoginDto) {
-    return this.authService.validateUser(dto.email, dto.password, LoginContext.BACKOFFICE, req);
+    return this.authService.validateUser(dto.login, dto.password, LoginContext.BACKOFFICE, req);
   }
 
   @Post('login-client')
   @ApiOperation({ summary: 'Login para Cliente' })
   async loginClient(@Request() req, @Body() dto: LoginDto) {
-    return this.authService.validateUser(dto.email, dto.password, LoginContext.CLIENT, req);
+    return this.authService.validateUser(
+      dto.login,
+      dto.password,
+      LoginContext.CLIENT,
+      req,
+      {
+        cnpj: dto.cnpj,
+        isAdmin: dto.isAdmin,
+      }
+    );
   }
+
 
   @Post('forgot-password')
   @ApiOperation({ summary: 'Solicitar redefinição de senha' })

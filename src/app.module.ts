@@ -6,6 +6,7 @@ import { ClientUserModule } from './modules/client-user/client-user.module';
 import { TermsModule } from './modules/terms/terms.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
+import { MailModule } from './modules/mail/mail.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
       isGlobal: true,
     }),
     PrismaModule,
+    MailModule,
     UserModule,
     ClientModule,
     ClientUserModule,

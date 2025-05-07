@@ -10,6 +10,11 @@
 //npx prisma db seed
 //npx prisma migrate reset
 //npx prisma db pull
+
+
+
+//npx prisma migrate deploy
+//npx prisma db seed
 generator client {
   provider = "prisma-client-js"
 }

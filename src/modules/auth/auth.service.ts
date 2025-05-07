@@ -8,52 +8,104 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RequestType } from '@prisma/client';
 import * as crypto from 'crypto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {} 
 
-  async validateUser(email: string, password: string, context: LoginContext, req: any) {
+  async validateUser(
+    login: string,
+    password: string,
+    context: LoginContext,
+    req: any,
+    extra?: { cnpj?: string; isAdmin?: boolean }
+  ) {
     let user: any;
-
+  
     if (context === LoginContext.BACKOFFICE) {
-      user = await this.prisma.user.findUnique({ where: { email } });
-    } else if (context === LoginContext.CLIENT) {
-      user = await this.prisma.clientUser.findUnique({ where: { email } });
+      user = await this.prisma.user.findUnique({ where: { email: login } });
     }
-
+  
+    if (context === LoginContext.CLIENT) {
+      const { cnpj, isAdmin } = extra || {};
+      const isNumeric = /^\d+$/.test(login);
+      const loginAsBigInt = isNumeric ? BigInt(login) : undefined;
+  
+      if (cnpj) {
+        if (isAdmin) {
+          // Admin da empresa faz login pelo CPF
+          user = await this.prisma.clientUser.findFirst({
+            where: {
+              cpfCnpj: loginAsBigInt,
+              client: {
+                is: {
+                  cpfCnpj: BigInt(cnpj)
+                }
+              }
+            },
+            include: { client: true },
+          });
+        } else {
+          // Funcionário faz login por email ou CPF vinculado à empresa
+          user = await this.prisma.clientUser.findFirst({
+            where: {
+              client: {  cpfCnpj: BigInt(cnpj) },
+              OR: [
+                { email: login },
+                { cpfCnpj: loginAsBigInt },
+              ],
+            },
+            include: { client: true },
+          });
+        }
+      } else {
+        // Pessoa Física: login por email ou CPF
+        user = await this.prisma.clientUser.findFirst({
+          where: {
+            OR: [
+              { email: login },
+              { cpfCnpj: loginAsBigInt },
+            ],
+          },
+        });
+      }
+    }
+  
     if (!user) {
       await this.registerLogin(null, context, LoginResult.FAILURE, req);
       throw new UnauthorizedException('Credenciais inválidas.');
     }
-
+  
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
+  
     if (!isPasswordValid) {
       await this.registerLogin(user.id, context, LoginResult.FAILURE, req);
       throw new UnauthorizedException('Credenciais inválidas.');
     }
-
+  
     await this.registerLogin(user.id, context, LoginResult.SUCCESS, req);
-
+  
     const payload: any = {
       sub: user.id,
       email: user.email,
       role: user.role,
       context,
     };
-
+  
     if (context === LoginContext.CLIENT) {
-      payload.clientId = user.clientId; // Adiciona o clientId para ClientUser
+      payload.clientId = user.clientId;
     }
-
+  
     return {
       access_token: this.jwtService.sign(payload),
     };
   }
+  
 
   private async registerLogin(userId: string | null, context: LoginContext, result: LoginResult, req: any) {
     await this.prisma.loginHistory.create({
@@ -88,9 +140,16 @@ export class AuthService {
           expires,
         },
       });      
-  
-      console.log(`Código redefinição para ${dto.email}: ${code}`);
-      console.log(`Token de validação para ${dto.email}: ${token}`);
+      await this.mailService.sendMail(
+        dto.email,
+        'Redefinição de senha - Radar Leilão',
+        `
+          <p>Você solicitou a redefinição de senha.</p>
+          <p><strong>Código:</strong> ${code}</p>
+          <p><strong>Acesse a aplicação no seguinte link:</strong> ${process.env.URL_FRONT+'/reset-password?token='+token}</p>
+        `
+      );
+      
       return { message: 'Código de redefinição enviado.' };
     } 
     
@@ -117,71 +176,66 @@ export class AuthService {
       });
       
   
-      console.log(`Código redefinição para ${dto.email}: ${code}`);
+      await this.mailService.sendMail(
+        dto.email,
+        'Redefinição de senha - Radar Leilão',
+        `
+          <p>Você solicitou a redefinição de senha.</p>
+          <p><strong>Código:</strong> ${code}</p>
+          <p><strong>Acesse a aplicação no seguinte link:</strong> ${process.env.URL_FRONT+'/reset-password?token='+token}</p>
+        `
+      );
+      
       console.log(`Token de validação para ${dto.email}: ${token}`);
       return { message: 'Código de redefinição enviado.' };
     }
   }
   
-  async resetPassword(dto: ResetPasswordDto) {
-    let request = await this.prisma.userRequest.findFirst({
+   async resetPassword(dto: ResetPasswordDto) {
+    const userRequest = await this.prisma.userRequest.findMany({
       where: {
-        generatedCode: dto.code,
-        generatedToken: dto.token,
         requestType: RequestType.RequestPassword,
         expires: { gt: new Date() },
       },
       orderBy: { createdOn: 'desc' },
     });
-  
-    if (request) {
-      const user = await this.prisma.user.findUnique({ where: { id: request.userId } });
-  
-      if (!user) {
-        throw new UnauthorizedException('Usuário não encontrado.');
-      }
-  
+    const latestUser = userRequest.find(r => r.generatedCode === dto.code && r.generatedToken === dto.token);
+
+    if (latestUser) {
+      const user = await this.prisma.user.findUnique({ where: { id: latestUser.userId } });
+      if (!user) throw new UnauthorizedException('Usuário não encontrado.');
+
       const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);
-  
       await this.prisma.user.update({
         where: { id: user.id },
         data: { password: newPasswordHash },
       });
-  
+
       return { message: 'Senha redefinida com sucesso.' };
     }
-  
-    // Se não achou no UserRequest, tenta ClientRequest
-    const clientRequest = await this.prisma.clientRequest.findFirst({
+
+    const clientRequest = await this.prisma.clientRequest.findMany({
       where: {
-        generatedCode: dto.code,
-        generatedToken: dto.token,
         requestType: RequestType.RequestPassword,
         expires: { gt: new Date() },
       },
       orderBy: { createdOn: 'desc' },
     });
-  
-    if (!clientRequest) {
-      throw new UnauthorizedException('Código ou token inválidos ou expirados.');
-    }
-  
-    const clientUser = await this.prisma.clientUser.findUnique({ where: { id: clientRequest.clientUserId } });
-  
-    if (!clientUser) {
-      throw new UnauthorizedException('Usuário cliente não encontrado.');
-    }
-  
+    const latestClient = clientRequest.find(r => r.generatedCode === dto.code && r.generatedToken === dto.token);
+
+    if (!latestClient) throw new UnauthorizedException('Código ou token inválidos ou expirados.');
+
+    const clientUser = await this.prisma.clientUser.findUnique({ where: { id: latestClient.clientUserId } });
+    if (!clientUser) throw new UnauthorizedException('Usuário cliente não encontrado.');
+
     const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);
-  
     await this.prisma.clientUser.update({
       where: { id: clientUser.id },
       data: { password: newPasswordHash },
     });
-  
+
     return { message: 'Senha redefinida com sucesso.' };
-  }
-  
+  }  
   
   async requestChangePassword(user: any) {
     const code = crypto.randomBytes(3).toString('hex');
@@ -208,7 +262,16 @@ export class AuthService {
       });
     }
   
-    console.log(`Código para mudança de senha: ${code}`);
+    await this.mailService.sendMail(
+      user.email,
+      'Confirmação de troca de senha - Radar Leilão',
+      `
+        <p>Seu código para confirmação de troca de senha é:</p>
+        <h3>${code}</h3>
+      `
+    );
+    
+    
     return { message: 'Código de confirmação enviado.' };
   }
   async changePassword(user: any, dto: ChangePasswordDto) {
@@ -277,35 +340,35 @@ export class AuthService {
     }
   }  
   async validateResetToken(token: string) {
-    let request = await this.prisma.userRequest.findFirst({
-      where: {
-        generatedToken: token,
-        requestType: RequestType.RequestPassword,
-        expires: { gt: new Date() },
-      },
-    });
-    if (request) {
-      return { message: 'Token válido.' };
-    }
-  
-    let requestClient = await this.prisma.clientRequest.findFirst({
-      where: {
-        generatedToken: token,
-        requestType: RequestType.RequestPassword,
-        expires: { gt: new Date() },
-      },
-    });
-    if (requestClient) {
-      return { message: 'Token válido.' };
-    }
-  
-    if (!requestClient) {
+    if (!token) {
       throw new UnauthorizedException('Token inválido ou expirado.');
     }
   
-    
+    const userRequest = await this.prisma.userRequest.findFirst({
+      where: {
+        generatedToken: token,
+        requestType: RequestType.RequestPassword,
+        expires: { gt: new Date() },
+      },
+      orderBy: { createdOn: 'desc' },
+    });
+  
+    if (userRequest) return { message: 'Token válido.' };
+  
+    const clientRequest = await this.prisma.clientRequest.findFirst({
+      where: {
+        generatedToken: token,
+        requestType: RequestType.RequestPassword,
+        expires: { gt: new Date() },
+      },
+      orderBy: { createdOn: 'desc' },
+    });
+  
+    if (clientRequest) return { message: 'Token válido.' };
+  
+    throw new UnauthorizedException('Token inválido ou expirado.');
   }
-
+  
 
   async verifyEmailCode(email: string, code: string) {
     const user = await this.prisma.clientUser.findUnique({
