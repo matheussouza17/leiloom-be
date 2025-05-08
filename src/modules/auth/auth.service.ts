@@ -25,86 +25,94 @@ export class AuthService {
     req: any,
     extra?: { cnpj?: string; isAdmin?: boolean }
   ) {
-    let user: any;
+    let user: any
   
     if (context === LoginContext.BACKOFFICE) {
-      user = await this.prisma.user.findUnique({ where: { email: login } });
-    }
+      user = await this.prisma.user.findUnique({ where: { email: login } })
   
-    if (context === LoginContext.CLIENT) {
-      const { cnpj, isAdmin } = extra || {};
-      const isNumeric = /^\d+$/.test(login);
-      const loginAsBigInt = isNumeric ? BigInt(login) : undefined;
-  
-      if (cnpj) {
-        if (isAdmin) {
-          // Admin da empresa faz login pelo CPF
-          user = await this.prisma.clientUser.findFirst({
-            where: {
-              cpfCnpj: loginAsBigInt,
-              client: {
-                is: {
-                  cpfCnpj: BigInt(cnpj)
-                }
-              }
-            },
-            include: { client: true },
-          });
-        } else {
-          // Funcionário faz login por email ou CPF vinculado à empresa
-          user = await this.prisma.clientUser.findFirst({
-            where: {
-              client: {  cpfCnpj: BigInt(cnpj) },
-              OR: [
-                { email: login },
-                { cpfCnpj: loginAsBigInt },
-              ],
-            },
-            include: { client: true },
-          });
-        }
-      } else {
-        // Pessoa Física: login por email ou CPF
-        user = await this.prisma.clientUser.findFirst({
-          where: {
-            OR: [
-              { email: login },
-              { cpfCnpj: loginAsBigInt },
-            ],
-          },
-        });
+      if (!user) {
+        await this.registerLogin(null, context, LoginResult.FAILURE, req)
+        throw new UnauthorizedException('Usuário não encontrado.')
       }
     }
   
-    if (!user) {
-      await this.registerLogin(null, context, LoginResult.FAILURE, req);
-      throw new UnauthorizedException('Credenciais inválidas.');
+    if (context === LoginContext.CLIENT) {
+      const { cnpj, isAdmin } = extra || {}
+      const isNumeric = /^\d+$/.test(login)
+      const loginAsBigInt = isNumeric ? BigInt(login) : undefined
+  
+      if (cnpj) {
+        // Login com vínculo a empresa
+        const clientCnpj = BigInt(cnpj)
+  
+        if (isAdmin) {
+          user = await this.prisma.clientUser.findFirst({
+            where: {
+              cpfCnpj: loginAsBigInt,
+              client: { cpfCnpj: clientCnpj },
+            },
+            include: { client: true },
+          })
+        } else {
+          user = await this.prisma.clientUser.findFirst({
+            where: {
+              client: { cpfCnpj: clientCnpj },
+              OR: [{ email: login }, { cpfCnpj: loginAsBigInt }],
+            },
+            include: { client: true },
+          })
+        }
+      } else {
+        // Login sem empresa (PF comum)
+        user = await this.prisma.clientUser.findFirst({
+          where: {
+            OR: [{ email: login }, { cpfCnpj: loginAsBigInt }],
+          },
+        })
+      }
+  
+      if (!user) {
+        await this.registerLogin(null, context, LoginResult.FAILURE, req)
+        throw new UnauthorizedException('Usuário não encontrado.')
+      }
+  
+      if (!user.isConfirmed) {
+        throw new UnauthorizedException('Usuário ainda não confirmou o e-mail.')
+      }
+  
+      if (user.status !== 'APPROVED') {
+        throw new UnauthorizedException('Conta ainda não aprovada.')
+      }
     }
   
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-  
+    // Valida senha
+    const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
-      await this.registerLogin(user.id, context, LoginResult.FAILURE, req);
-      throw new UnauthorizedException('Credenciais inválidas.');
+      await this.registerLogin(user.id, context, LoginResult.FAILURE, req)
+      throw new UnauthorizedException('Credenciais inválidas.')
     }
   
-    await this.registerLogin(user.id, context, LoginResult.SUCCESS, req);
+
+    await this.registerLogin(user.id, context, LoginResult.SUCCESS, req)
   
     const payload: any = {
       sub: user.id,
       email: user.email,
       role: user.role,
       context,
+      ...(context === LoginContext.CLIENT && { clientId: user.clientId }),
     };
+    
   
     if (context === LoginContext.CLIENT) {
-      payload.clientId = user.clientId;
+      payload.clientId = user.clientId
     }
   
     return {
       access_token: this.jwtService.sign(payload),
-    };
+    }
   }
+  
   
 
   private async registerLogin(userId: string | null, context: LoginContext, result: LoginResult, req: any) {
@@ -186,7 +194,6 @@ export class AuthService {
         `
       );
       
-      console.log(`Token de validação para ${dto.email}: ${token}`);
       return { message: 'Código de redefinição enviado.' };
     }
   }

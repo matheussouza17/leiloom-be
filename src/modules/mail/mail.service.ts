@@ -19,6 +19,5 @@ export class MailService {
       subject,
       html,
     });
-    console.log('Mensagem enviada:', info)
   }
 }

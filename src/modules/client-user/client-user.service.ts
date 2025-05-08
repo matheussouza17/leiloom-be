@@ -3,28 +3,37 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { CreateClientUserDto } from './dto/create-client-user.dto';
 import { UpdateClientUserDto } from './dto/update-client-user.dto';
 import * as bcrypt from 'bcrypt';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class ClientUserService {
+  constructor(private readonly mailService: MailService) {}
   private prisma = new PrismaClient();
 
   async create(dto: CreateClientUserDto) {
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const confirmationCode = Math.random().toString(36).substring(2, 15); 
-    console.log('Generated confirmation code:', confirmationCode);
-    try {
-      const user = await this.prisma.clientUser.create({
+    const existingUser = await this.prisma.clientUser.findUnique({
+      where: { email: dto.email },
+    });
+  
+    if (existingUser) {
+      if (existingUser.isConfirmed) {
+        throw new ConflictException('E-mail já cadastrado.');
+      }
+  
+      // Se o usuário já existe mas ainda não confirmou o cadastro,
+      // podemos atualizar os dados com o novo cadastro
+      const updatedUser = await this.prisma.clientUser.update({
+        where: { email: dto.email },
         data: {
           name: dto.name,
-          email: dto.email,
-          password: passwordHash,
+          password: await bcrypt.hash(dto.password, 10),
           phone: dto.phone,
           cpfCnpj: BigInt(dto.cpfCnpj),
           role: dto.role,
           clientId: dto.clientId,
           status: 'PENDING',
-          confirmationCode: confirmationCode, 
-          isConfirmed: false,
+          confirmationCode: Math.random().toString(36).substring(2, 15),
+          updatedOn: new Date(),
         },
         select: {
           id: true,
@@ -35,28 +44,73 @@ export class ClientUserService {
           role: true,
           status: true,
           isConfirmed: true,
+          confirmationCode: true,
           createdOn: true,
           updatedOn: true,
         },
       });
   
-      return {
-        ...user,
-        cpfCnpj: user.cpfCnpj.toString(),
-      };
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          const target = (error.meta as any)?.target as string[] | string;
+      await this.mailService.sendMail(
+        updatedUser.email,
+        'Confirmação de criação de conta - Radar Leilão',
+        `
+          <p>Seu código para confirmação de conta é:</p>
+          <h3>${updatedUser.confirmationCode}</h3>
+        `
+      );
   
-          if ((Array.isArray(target) && target.includes('email')) || target === 'email') {
-            throw new ConflictException('E-mail já cadastrado.');
-          }
-        }
-      }
-      throw error;
+      return {
+        ...updatedUser,
+        cpfCnpj: updatedUser.cpfCnpj.toString(),
+      };
     }
+  
+    // Caso o e-mail ainda não exista, cria normalmente
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const confirmationCode = Math.random().toString(36).substring(2, 15);
+  
+    const user = await this.prisma.clientUser.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        password: passwordHash,
+        phone: dto.phone,
+        cpfCnpj: BigInt(dto.cpfCnpj),
+        role: dto.role,
+        clientId: dto.clientId,
+        status: 'PENDING',
+        confirmationCode,
+        isConfirmed: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        cpfCnpj: true,
+        role: true,
+        status: true,
+        isConfirmed: true,
+        createdOn: true,
+        updatedOn: true,
+      },
+    });
+  
+    await this.mailService.sendMail(
+      user.email,
+      'Confirmação de criação de conta - Radar Leilão',
+      `
+        <p>Seu código para confirmação de conta é:</p>
+        <h3>${confirmationCode}</h3>
+      `
+    );
+  
+    return {
+      ...user,
+      cpfCnpj: user.cpfCnpj.toString(),
+    };
   }
+  
   
 
   async findAll() {
