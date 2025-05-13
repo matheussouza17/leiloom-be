@@ -56,14 +56,24 @@ export class TermsService {
     return terms;
   }
 
+  async findTerms() {
+    const terms = await this.prisma.termsOfUse.findMany({
+      orderBy: { createdOn: 'desc' },
+    });
+    if (!terms) {
+      throw new NotFoundException('Nenhum termo de uso encontrado.');
+    }
+
+    return terms;
+  }
+
   async uploadTerms(dto: UploadTermsDto) {
-    // Desativa o termo atual
+    if (dto.isCurrent) {
     await this.prisma.termsOfUse.updateMany({
       where: { isCurrent: true },
       data: { isCurrent: false },
     });
-  
-    // Cria novo termo
+  }
     const newTerms = await this.prisma.termsOfUse.create({
       data: {
         fileUrl: dto.fileUrl,
@@ -74,5 +84,33 @@ export class TermsService {
     });
   
     return newTerms;
+  }
+
+  async updateTerms(id: string, dto: UploadTermsDto) {
+    const existing = await this.prisma.termsOfUse.findUnique({ where: { id } });
+
+    if (!existing) {
+      throw new NotFoundException('Termo de uso não encontrado.');
+    }
+
+    if (dto.isCurrent) {
+      // Se estiver definindo como atual, desativa os outros
+      await this.prisma.termsOfUse.updateMany({
+        where: { isCurrent: true },
+        data: { isCurrent: false },
+      });
+    }
+
+    const updated = await this.prisma.termsOfUse.update({
+      where: { id },
+      data: {
+        fileUrl: dto.fileUrl,
+        description: dto.description,
+        isCurrent: dto.isCurrent,
+        uploadedById: dto.uploadedById,
+      },
+    });
+
+    return updated;
   }
 }

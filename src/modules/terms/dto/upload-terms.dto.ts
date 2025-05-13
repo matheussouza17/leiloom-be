@@ -1,4 +1,4 @@
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UploadTermsDto {
@@ -22,4 +22,8 @@ export class UploadTermsDto {
   })
   @IsNotEmpty()
   uploadedById: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  isCurrent: boolean;
 }

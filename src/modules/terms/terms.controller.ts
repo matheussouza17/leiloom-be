@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Param } from '@nestjs/common';
 import { TermsService } from './terms.service';
 import { AcceptTermsDto } from './dto/accept-terms.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
@@ -15,6 +15,12 @@ export class TermsController {
     return this.termsService.findCurrentTerms();
   }
 
+  @Get('all')
+  @ApiOperation({ summary: 'Buscar o termos' })
+  async findTerms() {
+    return this.termsService.findTerms();
+  }
+
   @Post('accept')
   @ApiOperation({ summary: 'Aceitar o termo de uso atual' })
   async acceptTerms(@Body() dto: AcceptTermsDto) {
@@ -26,4 +32,10 @@ export class TermsController {
     async uploadTerms(@Body() dto: UploadTermsDto) {
     return this.termsService.uploadTerms(dto);
     }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Atualizar um Termo de Uso existente' })
+  async updateTerms(@Param('id') id: string, @Body() dto: UploadTermsDto) {
+    return this.termsService.updateTerms(id, dto);
+  }
 }
