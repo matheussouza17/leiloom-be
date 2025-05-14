@@ -137,6 +137,9 @@ model Plan {
   durationDays Int
   isTrial      Boolean  @default(false)
   createdOn    DateTime @default(now())
+  isActive     Boolean  @default(true)
+  updatedOn    DateTime? @updatedAt
+  
 
   clientPlans ClientPlan[]
 }
