@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Post, Put, Param } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Param, UseGuards } from '@nestjs/common';
 import { TermsService } from './terms.service';
 import { AcceptTermsDto } from './dto/accept-terms.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UploadTermsDto } from './dto/upload-terms.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('Terms')
 @Controller('terms')
@@ -16,6 +17,7 @@ export class TermsController {
   }
 
   @Get('all')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Buscar o termos' })
   async findTerms() {
     return this.termsService.findTerms();
@@ -28,12 +30,14 @@ export class TermsController {
   }
 
   @Post('upload')
+  @UseGuards(JwtAuthGuard)
     @ApiOperation({ summary: 'Upload de novo Termo de Uso (BackOffice)' })
     async uploadTerms(@Body() dto: UploadTermsDto) {
     return this.termsService.uploadTerms(dto);
     }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Atualizar um Termo de Uso existente' })
   async updateTerms(@Param('id') id: string, @Body() dto: UploadTermsDto) {
     return this.termsService.updateTerms(id, dto);

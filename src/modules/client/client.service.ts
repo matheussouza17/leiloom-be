@@ -34,6 +34,7 @@ export class ClientService {
         neighborhood: true,
         city: true,
         state: true,
+        status: true,
         country: true,
         createdOn: true,
         updatedOn: true,
@@ -59,6 +60,7 @@ export class ClientService {
         neighborhood: true,
         city: true,
         state: true,
+        status: true,
         country: true,
         createdOn: true,
         updatedOn: true,
@@ -86,6 +88,7 @@ export class ClientService {
         city: true,
         state: true,
         country: true,
+        status: true,
         createdOn: true,
         updatedOn: true,
       },
@@ -149,15 +152,24 @@ export class ClientService {
     if (!existingClient) {
       throw new NotFoundException(`Cliente com ID ${id} não encontrado.`);
     }
-
-    const deleted = await this.prisma.client.delete({
+    const deleted = await this.prisma.client.update({
       where: { id },
+      data: { status: 'EXCLUDED', updatedOn: new Date() },
       select: {
         id: true,
         name: true,
         cpfCnpj: true,
+        cep: true,
+        street: true,
+        number: true,
+        complement: true,
+        neighborhood: true,
+        city: true,
+        state: true,
+        country: true,
         createdOn: true,
         updatedOn: true,
+        status: true,
       },
     });
 
