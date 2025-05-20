@@ -150,7 +150,7 @@ export class AuthService {
       });      
       await this.mailService.sendMail(
         dto.email,
-        'Redefinição de senha - Radar Leilão',
+        'Redefinição de senha - Leiloom',
         `
           <p>Você solicitou a redefinição de senha.</p>
           <p><strong>Código:</strong> ${code}</p>
@@ -186,7 +186,7 @@ export class AuthService {
   
       await this.mailService.sendMail(
         dto.email,
-        'Redefinição de senha - Radar Leilão',
+        'Redefinição de senha - Leiloom',
         `
           <p>Você solicitou a redefinição de senha.</p>
           <p><strong>Código:</strong> ${code}</p>
@@ -271,7 +271,7 @@ export class AuthService {
   
     await this.mailService.sendMail(
       user.email,
-      'Confirmação de troca de senha - Radar Leilão',
+      'Confirmação de troca de senha - Leiloom',
       `
         <p>Seu código para confirmação de troca de senha é:</p>
         <h3>${code}</h3>

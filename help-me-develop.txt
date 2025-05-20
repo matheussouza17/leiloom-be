@@ -3,9 +3,9 @@ nest start --watch
 
 Criar módulos:
 
-nest g module modules/terms
-nest g service modules/terms
-nest g controller modules/terms
+nest g module modules/plan
+nest g service modules/plan
+nest g controller modules/plan
 
 Prisma:
 npx prisma migrate dev --name create_user_table

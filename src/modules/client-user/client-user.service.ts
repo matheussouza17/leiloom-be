@@ -52,7 +52,7 @@ export class ClientUserService {
   
       await this.mailService.sendMail(
         updatedUser.email,
-        'Confirmação de criação de conta - Radar Leilão',
+        'Confirmação de criação de conta - Leiloom',
         `
           <p>Seu código para confirmação de conta é:</p>
           <h3>${updatedUser.confirmationCode}</h3>
@@ -98,7 +98,7 @@ export class ClientUserService {
   
     await this.mailService.sendMail(
       user.email,
-      'Confirmação de criação de conta - Radar Leilão',
+      'Confirmação de criação de conta - Leiloom',
       `
         <p>Seu código para confirmação de conta é:</p>
         <h3>${confirmationCode}</h3>

@@ -14,7 +14,7 @@ export class MailService {
 
   async sendMail(to: string, subject: string, html: string) {
     const info = await this.transporter.sendMail({
-      from: `"Radar Leilão" <${process.env.MAIL_USER}>`,
+      from: `"Leiloom" <${process.env.MAIL_USER}>`,
       to,
       subject,
       html,

@@ -44,4 +44,5 @@ export class CreateClientUserDto {
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   isConfirmed?: boolean;
+
 }
