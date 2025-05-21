@@ -27,4 +27,9 @@ export class CreatePlanDto {
     @ApiProperty({ example: true })
     @IsOptional()
     isActive?: boolean;
+
+    @ApiProperty({ example: 5 })
+    @IsNumber()
+    @Min(1)
+    numberOfUsers: number
 }

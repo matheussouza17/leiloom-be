@@ -32,4 +32,9 @@ export class UpdatePlanDto {
     @IsOptional()
     @IsBoolean()
     isActive?: boolean;
+
+    @ApiPropertyOptional({ example: 10 })
+    @IsOptional()
+    @IsNumber()
+    numberOfUsers?: number
 }

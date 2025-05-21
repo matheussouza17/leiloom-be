@@ -135,10 +135,12 @@ model Plan {
   description  String?
   price        Decimal
   durationDays Int
+  numberOfUsers Int? @default(1)
   isTrial      Boolean  @default(false)
   createdOn    DateTime @default(now())
   isActive     Boolean  @default(true)
   updatedOn    DateTime? @updatedAt
+
   
 
   clientPlans ClientPlan[]
