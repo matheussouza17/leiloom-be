@@ -97,6 +97,8 @@ export class AuthService {
   
     const payload: any = {
       sub: user.id,
+      name: user.name,
+      cpfCnpj: user.cpfCnpj,
       email: user.email,
       role: user.role,
       context,

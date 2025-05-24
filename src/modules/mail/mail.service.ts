@@ -13,11 +13,17 @@ export class MailService {
   });
 
   async sendMail(to: string, subject: string, html: string) {
-    const info = await this.transporter.sendMail({
+    try{
+      await this.transporter.sendMail({
       from: `"Leiloom" <${process.env.MAIL_USER}>`,
       to,
       subject,
       html,
     });
+    }
+    catch (error) {
+      console.error('Error sending email:', error);
+      throw new Error('Failed to send email');
+    }
   }
 }
