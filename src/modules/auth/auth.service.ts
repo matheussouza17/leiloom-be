@@ -114,8 +114,6 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
     }
   }
-  
-  
 
   private async registerLogin(userId: string | null, context: LoginContext, result: LoginResult, req: any) {
     await this.prisma.loginHistory.create({
@@ -283,6 +281,7 @@ export class AuthService {
     
     return { message: 'Código de confirmação enviado.' };
   }
+
   async changePassword(user: any, dto: ChangePasswordDto) {
     if (user.context === 'BACKOFFICE') {
       const request = await this.prisma.userRequest.findFirst({
@@ -348,6 +347,7 @@ export class AuthService {
       return { message: 'Senha alterada com sucesso.' };
     }
   }  
+
   async validateResetToken(token: string) {
     if (!token) {
       throw new UnauthorizedException('Token inválido ou expirado.');
@@ -376,9 +376,8 @@ export class AuthService {
     if (clientRequest) return { message: 'Token válido.' };
   
     throw new UnauthorizedException('Token inválido ou expirado.');
-  }
+  }  
   
-
   async verifyEmailCode(email: string, code: string) {
     const user = await this.prisma.clientUser.findUnique({
       where: { email },
@@ -430,6 +429,4 @@ export class AuthService {
       user: updated,
     };
   }
-  
-  
 }

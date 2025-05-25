@@ -113,7 +113,6 @@ model ClientUser {
   cpfCnpj  BigInt
   phone    String
   role     Role
-
   clientId String
   client   Client @relation(fields: [clientId], references: [id])
 

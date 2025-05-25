@@ -74,6 +74,7 @@ export class ClientService {
   }
 
   async findOne(id: string) {
+    
     const client = await this.prisma.client.findUnique({
       where: { id },
       select: {
@@ -91,8 +92,20 @@ export class ClientService {
         status: true,
         createdOn: true,
         updatedOn: true,
+        clientUsers: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            status: true,
+            createdOn: true,
+            updatedOn: true,
+          },
+          where: { clientId: id },
+        },
       },
     });
+
 
     if (!client) {
       throw new NotFoundException(`Cliente com ID ${id} não encontrado.`);

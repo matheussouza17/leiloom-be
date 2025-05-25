@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { CreateClientUserDto } from './dto/create-client-user.dto';
 import { UpdateClientUserDto } from './dto/update-client-user.dto';
+import { AddClientUserByAdminDto } from './dto/add-client-user-by-admin.dto';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ClientUserService {
@@ -110,21 +112,25 @@ export class ClientUserService {
       cpfCnpj: user.cpfCnpj.toString(),
     };
   }
-  
-  
 
-  async findAll() {
+  async findAll(clientId?: string) {
+    const whereClause = clientId ? { clientId: clientId } : {};
     const users = await this.prisma.clientUser.findMany({
       select: {
         id: true,
         name: true,
         email: true,
         phone: true,
+        status: true,
         cpfCnpj: true,
         role: true,
         createdOn: true,
         updatedOn: true,
       },
+      where: whereClause, 
+      orderBy: { 
+        name: 'asc',
+      }
     });
 
     return users.map(user => ({
@@ -141,6 +147,7 @@ export class ClientUserService {
         name: true,
         email: true,
         phone: true,
+        status: true,
         cpfCnpj: true,
         role: true,
         createdOn: true,
@@ -181,7 +188,9 @@ export class ClientUserService {
         name: true,
         email: true,
         phone: true,
+        status: true,
         cpfCnpj: true,
+        isConfirmed: true,
         role: true,
         createdOn: true,
         updatedOn: true,
@@ -209,6 +218,7 @@ export class ClientUserService {
         email: true,
         phone: true,
         cpfCnpj: true,
+        status: true,
         role: true,
         createdOn: true,
         updatedOn: true,
@@ -218,6 +228,96 @@ export class ClientUserService {
     return {
       ...deletedUser,
       cpfCnpj: deletedUser.cpfCnpj.toString(),
+    };
+  }
+
+  async addClientUserByAdmin(dto: AddClientUserByAdminDto) {
+    const existingUser = await this.prisma.clientUser.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      throw new ConflictException(
+        `O e-mail ${dto.email} já está cadastrado. Se o usuário não ativou a conta, ele deve verificar seu e-mail ou contatar o suporte.`,
+      );
+    }
+    const confirmationCode = Math.random().toString(36).substring(2, 15)
+    const token = crypto.randomBytes(32).toString('hex')
+    const expires = new Date(Date.now() + 1000 * 60 * 60 * 24)
+    
+    let createdUser;
+    try {
+      createdUser = await this.prisma.clientUser.create({
+        data: {
+          name: dto.name,
+          email: dto.email,
+          password: await bcrypt.hash(confirmationCode, 10),
+          phone: dto.phone,
+          cpfCnpj: BigInt(dto.cpfCnpj),
+          role: dto.role,
+          clientId: dto.clientId,
+          status: 'PENDING',
+          confirmationCode,
+          isConfirmed: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          cpfCnpj: true,
+          role: true,
+          status: true,
+          isConfirmed: true,
+          createdOn: true,
+          updatedOn: true,
+        },
+      })
+      await this.prisma.clientRequest.create({
+          data: {
+            clientId: dto.clientId,         
+            clientUserId: createdUser.id,    
+            requestType: 'RequestPassword',
+            generatedCode: confirmationCode,
+            generatedToken: token,
+            expires,
+          },
+        })
+    } catch (error) {
+      if (error.code === 'P2002') {
+         throw new ConflictException(`Erro ao criar usuário. Detalhes: ${error.meta?.target?.join(', ')} já existe(m).`);
+      }
+      console.error('Erro ao criar usuário:', error);
+      throw new InternalServerErrorException('Não foi possível adicionar o usuário. Tente novamente mais tarde.');
+    }
+
+    
+    const frontendUrl = process.env.URL_FRONT || 'http://localhost:3000'
+    const setupPasswordLink = `${frontendUrl}/reset-password?token=${token}`
+
+    try {
+      await this.mailService.sendMail(
+      createdUser.email,
+      'Configure sua conta na Plataforma Leiloom',
+      `
+        <p>Olá ${createdUser.name},</p>
+        <p>Uma conta foi criada para você na plataforma Leiloom pelo administrador.</p>
+        <p>Para ativar sua conta e definir sua senha, clique no link abaixo:</p>
+        <p><a href="${setupPasswordLink}" target="_blank">Configurar Minha Senha</a></p>
+        <p><strong>Código:</strong> ${confirmationCode}</p>
+        <p>Este link é válido por 24 horas.</p>
+      `
+    );
+    console.log(`E-mail enviado para ${createdUser.email} com sucesso.`);
+    } catch (mailError) {
+        console.error(`Falha ao enviar e-mail de configuração para ${createdUser.email}:`, mailError);
+        throw new InternalServerErrorException('Falha ao enviar e-mail de configuração. Tente novamente mais tarde.');
+    }
+    return {
+      message: `Usuário ${createdUser.name} adicionado com sucesso. Um e-mail foi enviado para ${createdUser.email} para configuração da senha.`,
+      user: {
+        ...createdUser,
+        cpfCnpj: createdUser.cpfCnpj.toString(),
+      }
     };
   }
 }
