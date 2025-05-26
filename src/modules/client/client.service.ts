@@ -97,6 +97,9 @@ export class ClientService {
             id: true,
             name: true,
             email: true,
+            phone: true,
+            cpfCnpj: true,
+            role: true,
             status: true,
             createdOn: true,
             updatedOn: true,
@@ -114,6 +117,10 @@ export class ClientService {
     return {
       ...client,
       cpfCnpj: client.cpfCnpj?.toString() ?? null,
+      clientUsers: client.clientUsers.map(user => ({
+        ...user,
+        cpfCnpj: user.cpfCnpj?.toString() ?? null,
+      })),
     };
   }
 

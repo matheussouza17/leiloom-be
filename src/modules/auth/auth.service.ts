@@ -238,7 +238,9 @@ export class AuthService {
     const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);
     await this.prisma.clientUser.update({
       where: { id: clientUser.id },
-      data: { password: newPasswordHash },
+      data: { password: newPasswordHash,
+            status: 'APPROVED'
+       },
     });
 
     return { message: 'Senha redefinida com sucesso.' };

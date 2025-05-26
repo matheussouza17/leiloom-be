@@ -132,7 +132,6 @@ export class ClientUserService {
         name: 'asc',
       }
     });
-
     return users.map(user => ({
       ...user,
       cpfCnpj: user.cpfCnpj.toString(),
@@ -243,7 +242,7 @@ export class ClientUserService {
     const confirmationCode = Math.random().toString(36).substring(2, 15)
     const token = crypto.randomBytes(32).toString('hex')
     const expires = new Date(Date.now() + 1000 * 60 * 60 * 24)
-    
+    console.log('file dto', dto);
     let createdUser;
     try {
       createdUser = await this.prisma.clientUser.create({
@@ -286,7 +285,6 @@ export class ClientUserService {
       if (error.code === 'P2002') {
          throw new ConflictException(`Erro ao criar usuário. Detalhes: ${error.meta?.target?.join(', ')} já existe(m).`);
       }
-      console.error('Erro ao criar usuário:', error);
       throw new InternalServerErrorException('Não foi possível adicionar o usuário. Tente novamente mais tarde.');
     }
 
