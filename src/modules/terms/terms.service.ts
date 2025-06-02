@@ -78,7 +78,7 @@ export class TermsService {
       data: {
         fileUrl: dto.fileUrl,
         description: dto.description,
-        isCurrent: true,
+        isCurrent: dto.isCurrent,
         uploadedById: dto.uploadedById,
       },
     });

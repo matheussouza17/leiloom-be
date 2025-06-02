@@ -18,103 +18,6 @@ export class AuthService {
     private mailService: MailService,
   ) {} 
 
-  async validateUser(
-    login: string,
-    password: string,
-    context: LoginContext,
-    req: any,
-    extra?: { cnpj?: string; isAdmin?: boolean }
-  ) {
-    let user: any
-  
-    if (context === LoginContext.BACKOFFICE) {
-      user = await this.prisma.user.findUnique({ where: { email: login } })
-  
-      if (!user) {
-        await this.registerLogin(null, context, LoginResult.FAILURE, req)
-        throw new UnauthorizedException('Usuário não encontrado.')
-      }
-    }
-  
-    if (context === LoginContext.CLIENT) {
-      const { cnpj, isAdmin } = extra || {}
-      const isNumeric = /^\d+$/.test(login)
-      const loginAsBigInt = isNumeric ? BigInt(login) : undefined
-  
-      if (cnpj) {
-        // Login com vínculo a empresa
-        const clientCnpj = BigInt(cnpj)
-  
-        if (isAdmin) {
-          user = await this.prisma.clientUser.findFirst({
-            where: {
-              cpfCnpj: loginAsBigInt,
-              client: { cpfCnpj: clientCnpj },
-            },
-            include: { client: true },
-          })
-        } else {
-          user = await this.prisma.clientUser.findFirst({
-            where: {
-              client: { cpfCnpj: clientCnpj },
-              OR: [{ email: login }, { cpfCnpj: loginAsBigInt }],
-            },
-            include: { client: true },
-          })
-        }
-      } else {
-        // Login sem empresa (PF comum)
-        user = await this.prisma.clientUser.findFirst({
-          where: {
-            OR: [{ email: login }, { cpfCnpj: loginAsBigInt }],
-          },
-        })
-      }
-  
-      if (!user) {
-        await this.registerLogin(null, context, LoginResult.FAILURE, req)
-        throw new UnauthorizedException('Usuário não encontrado.')
-      }
-  
-      if (!user.isConfirmed) {
-        throw new UnauthorizedException('Usuário ainda não confirmou o e-mail.')
-      }
-  
-      if (user.status !== 'APPROVED') {
-        throw new UnauthorizedException('Conta ainda não aprovada.')
-      }
-    }
-  
-    // Valida senha
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-    if (!isPasswordValid) {
-      await this.registerLogin(user.id, context, LoginResult.FAILURE, req)
-      throw new UnauthorizedException('Credenciais inválidas.')
-    }
-  
-
-    await this.registerLogin(user.id, context, LoginResult.SUCCESS, req)
-  
-    const payload: any = {
-      sub: user.id,
-      name: user.name,
-      cpfCnpj: user.cpfCnpj,
-      email: user.email,
-      role: user.role,
-      context,
-      ...(context === LoginContext.CLIENT && { clientId: user.clientId }),
-    };
-    
-  
-    if (context === LoginContext.CLIENT) {
-      payload.clientId = user.clientId
-    }
-  
-    return {
-      access_token: this.jwtService.sign(payload),
-    }
-  }
-
   private async registerLogin(userId: string | null, context: LoginContext, result: LoginResult, req: any) {
     await this.prisma.loginHistory.create({
       data: {
@@ -431,4 +334,164 @@ export class AuthService {
       user: updated,
     };
   }
+
+  async validateUser(
+  login: string,
+  password: string,
+  context: LoginContext,
+  req: any,
+  extra?: { cnpj?: string; isAdmin?: boolean }
+): Promise<{ access_token: string }> {
+  try {
+    const user = await this.findUserByContext(login, context, extra);
+    
+    await this.validateUserStatus(user, context);
+    await this.validatePassword(password, user.password);
+    
+    await this.registerLogin(user.id, context, LoginResult.SUCCESS, req);
+    
+    return {
+      access_token: this.generateJwtToken(user, context)
+    };
+  } catch (error) {
+    await this.registerLogin(null, context, LoginResult.FAILURE, req);
+    throw error;
+  }
+}
+
+private async findUserByContext(
+  login: string, 
+  context: LoginContext, 
+  extra?: { cnpj?: string; isAdmin?: boolean }
+): Promise<any> {
+  if (context === LoginContext.BACKOFFICE) {
+    return this.findBackofficeUser(login);
+  }
+  
+  if (context === LoginContext.CLIENT) {
+    return this.findClientUser(login, extra);
+  }
+  
+  throw new UnauthorizedException('Contexto de login inválido.');
+}
+
+private async findBackofficeUser(email: string): Promise<any> {
+  const user = await this.prisma.user.findUnique({ 
+    where: { email } 
+  });
+  
+  if (!user) {
+    throw new UnauthorizedException('Usuário não encontrado.');
+  }
+  
+  return user;
+}
+
+private async findClientUser(
+  login: string, 
+  extra?: { cnpj?: string; isAdmin?: boolean }
+): Promise<any> {
+  const { cnpj, isAdmin } = extra || {};
+  const loginAsBigInt = this.parseLoginAsBigInt(login);
+  
+  let user: any;
+  
+  if (cnpj) {
+    user = await this.findClientUserWithCompany(login, loginAsBigInt, cnpj, isAdmin);
+  } else {
+    user = await this.findIndividualClientUser(login, loginAsBigInt);
+  }
+  
+  if (!user) {
+    throw new UnauthorizedException('Usuário não encontrado.');
+  }
+  
+  return user;
+}
+
+private parseLoginAsBigInt(login: string): bigint | undefined {
+  const isNumeric = /^\d+$/.test(login);
+  return isNumeric ? BigInt(login) : undefined;
+}
+
+private async findClientUserWithCompany(
+  login: string,
+  loginAsBigInt: bigint | undefined,
+  cnpj: string,
+  isAdmin?: boolean
+): Promise<any> {
+  const clientCnpj = BigInt(cnpj);
+  
+  if (isAdmin) {
+    return this.prisma.clientUser.findFirst({
+      where: {
+        cpfCnpj: loginAsBigInt,
+        client: { cpfCnpj: clientCnpj },
+      },
+      include: { client: true },
+    });
+  }
+  
+  return this.prisma.clientUser.findFirst({
+    where: {
+      client: { cpfCnpj: clientCnpj },
+      OR: [
+        { email: login }, 
+        { cpfCnpj: loginAsBigInt }
+      ],
+    },
+    include: { client: true },
+  });
+}
+
+private async findIndividualClientUser(
+  login: string,
+  loginAsBigInt: bigint | undefined
+): Promise<any> {
+  return this.prisma.clientUser.findFirst({
+    where: {
+      OR: [
+        { email: login }, 
+        { cpfCnpj: loginAsBigInt }
+      ],
+    },
+  });
+}
+
+private async validateUserStatus(user: any, context: LoginContext): Promise<void> {
+  if (context === LoginContext.CLIENT) {
+    if (!user.isConfirmed) {
+      throw new UnauthorizedException('Usuário ainda não confirmou o e-mail.');
+    }
+    
+    if (user.status !== 'APPROVED') {
+      throw new UnauthorizedException('Conta ainda não aprovada.');
+    }
+  }
+}
+
+private async validatePassword(inputPassword: string, userPassword: string): Promise<void> {
+  const isPasswordValid = await bcrypt.compare(inputPassword, userPassword);
+  
+  if (!isPasswordValid) {
+    throw new UnauthorizedException('Credenciais inválidas.');
+  }
+}
+
+private generateJwtToken(user: any, context: LoginContext): string {
+  const basePayload = {
+    sub: user.id,
+    name: user.name,
+    cpfCnpj: user.cpfCnpj ? user.cpfCnpj.toString() : null,
+    email: user.email,
+    role: user.role,
+    context,
+  };
+  
+  const payload = context === LoginContext.CLIENT 
+    ? { ...basePayload, clientId: user.clientId }
+    : basePayload;
+  
+  return this.jwtService.sign(payload);
+}
 }
