@@ -8,6 +8,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { MailModule } from './modules/mail/mail.module';
 import { PlanModule } from './modules/plan/plan.module';
+import { ClientPlanModule } from './modules/client-plan/client-plan.module';
+import { ClientPeriodPlanModule } from './modules/client-period-plan/client-period-plan.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { BigIntSerializerInterceptor } from './common/interceptors/bigint-serializer.interceptor';
 
 @Module({
   imports: [
@@ -22,6 +26,14 @@ import { PlanModule } from './modules/plan/plan.module';
     TermsModule,
     AuthModule,
     PlanModule,
+    ClientPlanModule,
+    ClientPeriodPlanModule,
   ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: BigIntSerializerInterceptor,
+    },
+  ]
 })
 export class AppModule {}

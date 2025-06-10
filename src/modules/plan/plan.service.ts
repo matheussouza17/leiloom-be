@@ -13,10 +13,15 @@ export class PlanService {
     })
   }
 
-  async findAll() {
+  async findAll(isActive?: boolean) {
+    const where = isActive === undefined
+      ? {}                       
+      : { isActive };             
+
     return this.prisma.plan.findMany({
-      orderBy: { createdOn: 'desc' }
-    })
+      where,
+      orderBy: { createdOn: 'desc' },
+    });
   }
 
   async findOne(id: string) {

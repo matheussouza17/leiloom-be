@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common'
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, Query, DefaultValuePipe, ParseBoolPipe } from '@nestjs/common'
 import { PlanService } from './plan.service'
 import { CreatePlanDto } from './dto/create-plan.dto'
 import { UpdatePlanDto } from './dto/update-plan.dto'
-import { ApiTags, ApiOperation } from '@nestjs/swagger'
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('Plans')
@@ -19,8 +19,24 @@ export class PlanController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todos os planos' })
-  findAll() {
-    return this.planService.findAll()
+  @ApiQuery({
+    name: 'isActive',
+    required: false,
+    type: Boolean,
+    description: 'Se true, traz só planos ativos; se false, só inativos; sem param, traz todos',
+  })
+  findAll(@Query('isActive') isActive?: string) {
+  let isActiveBoolean: boolean | undefined;
+  
+  if (isActive === 'true') {
+    isActiveBoolean = true;
+  } else if (isActive === 'false') {
+    isActiveBoolean = false;
+  } else {
+    isActiveBoolean = undefined;
+  }
+  
+  return this.planService.findAll(isActiveBoolean);
   }
 
   @Get(':id')

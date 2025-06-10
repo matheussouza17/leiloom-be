@@ -132,7 +132,7 @@ model Plan {
   id           String   @id @default(uuid())
   name         String
   description  String?
-  price        Decimal
+  price        Float
   durationDays Int
   numberOfUsers Int? @default(1)
   isTrial      Boolean  @default(false)
@@ -159,6 +159,8 @@ model ClientPlan {
   periods ClientPeriodPlan[]
 
   createdOn DateTime @default(now())
+  @@index([clientId, current])
+  @@unique([clientId, current], name: "unique_current_plan_per_client")
 }
 
 model ClientPeriodPlan {
@@ -173,6 +175,11 @@ model ClientPeriodPlan {
   wasConfirmed Boolean  @default(false)
 
   createdOn DateTime @default(now())
+  @@index([clientPlanId, isCurrent]) 
+  @@index([expiresAt])
+  renewedFromId String? // ID do período anterior (para histórico)
+  renewedFrom   ClientPeriodPlan? @relation("PeriodRenewal", fields: [renewedFromId], references: [id])
+  renewals      ClientPeriodPlan[] @relation("PeriodRenewal")
 }
 
 model ClientRequest {
