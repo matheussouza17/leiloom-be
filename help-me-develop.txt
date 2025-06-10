@@ -9,7 +9,7 @@ nest g controller modules/plan
 
 Prisma:
 npx prisma migrate dev --name create_user_table
-npx prisma generate
+npx prisma generate 
 
 
 JWT:
